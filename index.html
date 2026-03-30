@@ -550,7 +550,7 @@ function renderResults(element, results) {
       <div class="stat-label">采矿方式数</div>
     </div>
     ${(() => {
-      const displayName = selected.replace(/ \(Ore\)$/, '').replace(/ \(Raw\)$/, '');
+      const displayName = element.replace(/ \(Ore\)$/, '').replace(/ \(Raw\)$/, '');
       const rsVal = RS_VALUES[displayName];
       if (rsVal) return `<div class="stat-card" style="border-color:#00d4ff"><div class="stat-value" style="color:#00d4ff">${rsVal}</div><div class="stat-label">📡 RS 信号值</div></div>`;
       return '';

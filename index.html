@@ -218,6 +218,21 @@ const QUALITY_PROBS = {
   pyro:    { '800+': 0.020202, '900+': 0.003100, '950+': 0.000883, '999+': 0.000010 }  // ~15% higher
 };
 
+// RS (Resource Signature) values for ship mining scanner identification
+// Each mineral has a unique RS value — use your ship's Scan Mode to filter
+// Source: cstone.space - Know Your Hardware (updated 2025-12-17, alpha 4.7)
+const RS_VALUES = {
+  'Quantainium': 3170, 'Stileron': 3185, 'Savrilium': 3200,
+  'Ouratite': 3370, 'Riccite': 3385, 'Lindinium': 3400,
+  'Beryl': 3540, 'Taranite': 3555, 'Borase': 3570,
+  'Gold': 3585, 'Bexalite': 3600, 'Laranite': 3825,
+  'Aslarite': 3840, 'Titanium': 3855, 'Tungsten': 3870,
+  'Agricium': 3885, 'Torite': 3900, 'Hephaestanite': 4180,
+  'Tin': 4195, 'Quartz': 4210, 'Corundum': 4225,
+  'Copper': 4240, 'Silicon': 4255, 'Iron': 4270,
+  'Aluminium': 4285, 'Ice': 4300
+};
+
 function qsLabel(qs) {
   if (qs === 1) return ['qs-1', '★ 高品质 (501-1000)'];
   if (qs === 0.49) return ['qs-2', '次级 (245-490)'];
@@ -527,6 +542,12 @@ function renderResults(element, results) {
       <div class="stat-value">${bestScore.methodCount}</div>
       <div class="stat-label">采矿方式数</div>
     </div>
+    ${(() => {
+      const displayName = selected.replace(/ \(Ore\)$/, '').replace(/ \(Raw\)$/, '');
+      const rsVal = RS_VALUES[displayName];
+      if (rsVal) return `<div class="stat-card" style="border-color:#00d4ff"><div class="stat-value" style="color:#00d4ff">${rsVal}</div><div class="stat-label">📡 RS 信号值</div></div>`;
+      return '';
+    })()}
   `;
 
   const maxNorm = Math.max(...results.filter(r => r.isPrimary).map(r => r.normalizedProb), 1);

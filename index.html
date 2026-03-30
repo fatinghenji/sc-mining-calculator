@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SC 采矿计算器</title>
 <style>
@@ -349,11 +351,16 @@ function renderRouteInfo(results, excludeBelt) {
 
 async function loadData() {
   try {
-    const r = await fetch(DATA_URL);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const r = await fetch(DATA_URL, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     miningData = await r.json();
     initUI();
+    document.getElementById('results').innerHTML = '<div class="empty-state"><div class="icon">⛏</div>选择一个矿物开始查询</div>';
   } catch (e) {
-    document.getElementById('results').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>加载失败: ${e.message}</div>`;
+    document.getElementById('results').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>加载失败: ${e.message}<br><small>请刷新页面重试</small></div>`;
   }
 }
 

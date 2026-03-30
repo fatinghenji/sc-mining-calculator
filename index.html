@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SC 采矿计算器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0e17; color: #e0e6f0; min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+h1 { text-align: center; font-size: 1.8em; margin-bottom: 4px; background: linear-gradient(135deg, #00d4ff, #7b2ff7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.subtitle { text-align: center; color: #6b7280; font-size: 0.85em; margin-bottom: 24px; }
+
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-group label { font-size: 0.75em; color: #8b95a5; text-transform: uppercase; letter-spacing: 0.5px; }
+select, input { background: #151b2b; border: 1px solid #2a3350; color: #e0e6f0; padding: 8px 12px; border-radius: 6px; font-size: 0.9em; outline: none; }
+select:focus { border-color: #00d4ff; }
+select { min-width: 180px; }
+input { width: 120px; }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 16px; background: #111827; border-radius: 8px; font-size: 0.8em; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-ship { background: #00d4ff; }
+.dot-fps { background: #f59e0b; }
+.dot-roc { background: #10b981; }
+.dot-harvest { background: #a855f7; }
+
+.results { display: flex; flex-direction: column; gap: 8px; }
+.location-card { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; transition: border-color 0.2s; }
+.location-card:hover { border-color: #2a3350; }
+.location-card.best { border-color: #00d4ff; background: linear-gradient(135deg, rgba(0,212,255,0.05), transparent); }
+.location-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.location-name { font-size: 1.1em; font-weight: 600; }
+.location-name .system-tag { font-size: 0.7em; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+.system-pyro { background: rgba(239,68,68,0.2); color: #f87171; }
+.system-stanton { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.system-nyx { background: rgba(168,85,247,0.2); color: #c084fc; }
+.type-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; background: #1e293b; color: #8b95a5; }
+
+.deposit-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.deposit-table th { text-align: left; padding: 6px 10px; color: #6b7280; font-weight: 500; border-bottom: 1px solid #1e293b; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+.deposit-table td { padding: 6px 10px; border-bottom: 1px solid rgba(30,41,59,0.5); }
+.deposit-table tr:last-child td { border-bottom: none; }
+.deposit-table .highlight { color: #00d4ff; font-weight: 600; }
+
+.prob-bar { display: inline-block; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #00d4ff, #7b2ff7); vertical-align: middle; margin-left: 8px; }
+.composition-tag { font-size: 0.75em; padding: 1px 6px; border-radius: 4px; background: #1e293b; }
+.composition-tag.primary { background: rgba(0,212,255,0.15); color: #00d4ff; }
+.composition-tag.secondary { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.composition-tag.byproduct { background: rgba(16,185,129,0.15); color: #10b981; }
+
+.quality-info { margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.8em; }
+.quality-info .qi-title { color: #8b95a5; margin-bottom: 4px; }
+.quality-part { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; margin-top: 4px; }
+.qs-1 { color: #00d4ff; }
+.qs-2 { color: #f59e0b; }
+.qs-3 { color: #10b981; }
+.qs-0 { color: #6b7280; }
+
+.empty-state { text-align: center; padding: 40px; color: #6b7280; }
+.empty-state .icon { font-size: 2em; margin-bottom: 12px; }
+
+.stats-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat-card { background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 150px; }
+.stat-value { font-size: 1.4em; font-weight: 700; color: #00d4ff; }
+.stat-label { font-size: 0.75em; color: #6b7280; margin-top: 2px; }
+
+.loading { text-align: center; padding: 40px; }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #2a3350; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.note { font-size: 0.75em; color: #4b5563; margin-top: 12px; line-height: 1.6; padding: 8px 12px; background: #0d1117; border-radius: 6px; }
+
+.route-box { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.route-box h2 { font-size: 1em; color: #00d4ff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.route-box h3 { font-size: 0.9em; color: #a78bfa; margin: 14px 0 8px; }
+.route-box p, .route-box li { font-size: 0.82em; color: #b0b8c8; line-height: 1.7; }
+.route-box ul { padding-left: 20px; }
+.route-box ol { padding-left: 20px; }
+.route-box ol li { margin-bottom: 6px; }
+.route-box .tip { background: rgba(0,212,255,0.06); border-left: 3px solid #00d4ff; padding: 8px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 0.8em; color: #8bcae8; }
+.route-box .warning { background: rgba(245,158,11,0.06); border-left: 3px solid #f59e0b; padding: 8px 12px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 0.8em; color: #e0c080; }
+.route-box img { max-width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid #1e293b; }
+.route-box .link { color: #00d4ff; text-decoration: none; }
+.route-box .link:hover { text-decoration: underline; }
+.route-box .band-table { width: 100%; border-collapse: collapse; font-size: 0.8em; margin: 8px 0; }
+.route-box .band-table th { text-align: left; padding: 4px 8px; color: #6b7280; border-bottom: 1px solid #1e293b; }
+.route-box .band-table td { padding: 4px 8px; border-bottom: 1px solid rgba(30,41,59,0.5); }
+.route-box .density-bar { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #1e293b, #00d4ff); vertical-align: middle; display: inline-block; }
+
+@media (max-width: 600px) {
+  .filters { flex-direction: column; }
+  select { min-width: 100%; }
+  .deposit-table { font-size: 0.78em; }
+  .deposit-table th, .deposit-table td { padding: 4px 6px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>⛏ SC 采矿计算器</h1>
+  <div class="subtitle">基于 SCMDB 解包数据 · v4.7.0 · 数据来源 <a href="https://scmdb.net/?page=mine" target="_blank" style="color:#00d4ff">scmdb.net</a></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="dot dot-ship"></span> 船矿 SpaceShip</div>
+    <div class="legend-item"><span class="dot dot-fps"></span> FPS矿</div>
+    <div class="legend-item"><span class="dot dot-roc"></span> ROC车矿</div>
+    <div class="legend-item"><span class="dot dot-harvest"></span> 采集物</div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>矿物/资源</label>
+      <select id="elementSelect"><option value="">加载中...</option></select>
+    </div>
+    <div class="filter-group">
+      <label>采矿方式</label>
+      <select id="methodFilter">
+        <option value="all">全部</option>
+        <option value="SpaceShip_Mineables">🚀 船矿</option>
+        <option value="FPS_Mineables">⛏ FPS矿</option>
+        <option value="GroundVehicle_Mineables">🚜 ROC</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>星系</label>
+      <select id="systemFilter">
+        <option value="all">全部</option>
+        <option value="Stanton">Stanton</option>
+        <option value="Pyro">Pyro</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>排除小行星带</label>
+      <select id="excludeBelt">
+        <option value="1" selected>是</option>
+        <option value="0">否</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats-row" id="statsRow"></div>
+  <div id="routeInfo"></div>
+  <div class="results" id="results">
+    <div class="loading"><div class="spinner"></div><br>正在加载采矿数据...</div>
+  </div>
+
+  <div class="note">
+    ⚠️ 说明：<b>权重</b> = 找到矿点后，是该矿物的概率（越高越好，代表命中率）。<b>POI类型概率</b> = 兴趣点是该采矿方式的概率（影响矿点密度）。<br>
+    排序优先级：主矿权重（命中率）> 采矿方式数量 > 综合效率。主矿 = qualityScale 1.0 的高品质组分。<br>
+    品质遵循正态分布：800+ ~1.76%，900+ ~0.27%，950+ ~0.08%。Pyro 系高品质概率比 Stanton 高约 15%。
+  </div>
+</div>
+
+<script>
+const VERSION = '4.7.0-live.11518367';
+const DATA_URL = `./mining_data.json`;
+
+let miningData = null;
+
+const GROUP_LABELS = {
+  'SpaceShip_Mineables': '🚀 船矿',
+  'FPS_Mineables': '⛏ FPS',
+  'GroundVehicle_Mineables': '🚜 ROC',
+  'Harvest_Mineables': '🌿 采集'
+};
+
+const SYSTEM_CLASS = {
+  'Pyro': 'system-pyro',
+  'Stanton': 'system-stanton',
+  'Nyx': 'system-nyx'
+};
+
+const TYPE_LABELS = {
+  'planet': '行星',
+  'moon': '卫星',
+  'belt': '小行星带',
+  'lagrange': '拉格朗日点',
+  'cluster': '星团',
+  'cave': '洞穴',
+  'event': '事件',
+  'special': '特殊'
+};
+
+// Lagrange point → nearby stations mapping (from SCMDB source code)
+const LAGRANGE_STATIONS = {
+  'Lagrange A': '📍 HUR-L1, HUR-L4',
+  'Lagrange B': '📍 ARC-L5, CRU-L4, MIC-L3',
+  'Lagrange C': '📍 HUR-L5, MIC-L1, MIC-L2, MIC-L5',
+  'Lagrange D': '📍 ARC-L3, CRU-L5, MIC-L4',
+  'Lagrange E': '📍 CRU-L1, CRU-L2, HUR-L3',
+  'Lagrange F': '📍 HUR-L2, ARC-L1, ARC-L2, ARC-L4',
+  'Lagrange G': '📍 CRU-L5, MIC-L4',
+  'Lagrange (Occupied)': '📍 CRU-L5, MIC-L4'
+};
+
+// Normal distribution CDF approximation
+function normalCDF(x, mean, stddev) {
+  return 0.5 * (1 + erf((x - mean) / (stddev * Math.sqrt(2))));
+}
+function erf(x) {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+  const p = 0.3275911;
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return sign * y;
+}
+
+// Quality probability calculations (for common rarity, ship mining)
+// Distribution: quality 501-1000, approximately normal
+// These are rough approximations based on the chat data
+const QUALITY_PROBS = {
+  stanton: { '800+': 0.017567, '900+': 0.002695, '950+': 0.000768, '999+': 0.000009 },
+  pyro:    { '800+': 0.020202, '900+': 0.003100, '950+': 0.000883, '999+': 0.000010 }  // ~15% higher
+};
+
+function qsLabel(qs) {
+  if (qs === 1) return ['qs-1', '★ 高品质 (501-1000)'];
+  if (qs === 0.49) return ['qs-2', '次级 (245-490)'];
+  if (qs >= 0.78 && qs <= 0.79) return ['qs-3', '副产物 (395-789)'];
+  if (qs === 0) return ['qs-0', '无品质'];
+  return ['qs-0', `缩放 x${qs}`];
+}
+
+// Aaron Halo belt navigation data (from cstone.space)
+const AARON_HALO_ROUTES = {
+  bands: [
+    { band: 1, distance: 19200000, density: 'medium' },
+    { band: 2, distance: 19400000, density: 'high' },
+    { band: 3, distance: 19600000, density: 'low' },
+    { band: 4, distance: 19800000, density: 'high' },
+    { band: 5, distance: 20300000, density: 'very high' },
+    { band: 6, distance: 20800000, density: 'medium' },
+    { band: 7, distance: 21500000, density: 'medium' },
+    { band: 8, distance: 22000000, density: 'high' },
+    { band: 9, distance: 22300000, density: 'low' },
+    { band: 10, distance: 22600000, density: 'medium' }
+  ],
+  refineries: [
+    { name: 'ARC-L1', routes: ['CRU-L4', 'CRU-L5', 'HUR-L2', 'MIC-L2'] },
+    { name: 'ARC-L2', routes: ['CRU-L4', 'CRU-L5', 'HUR-L1', 'HUR-L2'] },
+    { name: 'ARC-L4', routes: ['CRU-L1', 'CRU-L4', 'CRU-L5', 'HUR-L1', 'HUR-L2'] },
+    { name: 'CRU-L1', routes: ['ARC-L4', 'ARC-L5', 'HUR-L1', 'HUR-L2', 'MIC-L1'] },
+    { name: 'HUR-L1', routes: ['ARC-L2', 'ARC-L4', 'ARC-L5', 'CRU-L1', 'CRU-L4'] },
+    { name: 'HUR-L2', routes: ['ARC-L2', 'ARC-L4', 'ARC-L5', 'CRU-L1', 'CRU-L4', 'MIC-L5'] },
+    { name: 'MIC-L1', routes: ['ARC-L2', 'ARC-L4', 'ARC-L5', 'CRU-L1', 'CRU-L4', 'HUR-L1'] },
+    { name: 'MIC-L2', routes: ['ARC-L1', 'ARC-L2', 'ARC-L5', 'CRU-L1', 'CRU-L4', 'HUR-L1'] },
+    { name: 'MIC-L5', routes: ['ARC-L1', 'ARC-L4', 'CRU-L1', 'CRU-L4', 'HUR-L1', 'HUR-L2'] }
+  ]
+};
+
+function renderRouteInfo(results, excludeBelt) {
+  const container = document.getElementById('routeInfo');
+  // Only show when belts are included and results contain belt locations
+  if (excludeBelt) {
+    container.innerHTML = '';
+    return;
+  }
+  // Check if any result is a belt location in Stanton (Aaron Halo)
+  const beltResults = results.filter(r =>
+    r.locationType === 'belt' || r.locationName.toLowerCase().includes('halo') ||
+    r.locationName.toLowerCase().includes('belt') || r.locationName.toLowerCase().includes('lagrange')
+  );
+
+  if (beltResults.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Show Aaron Halo route guide
+  const maxDensity = AARON_HALO_ROUTES.bands.reduce((m, b) => {
+    const d = { 'very high': 100, 'high': 70, 'medium': 45, 'low': 25 };
+    return d[b.density] > (m || 0) ? d[b.density] : m;
+  }, 0);
+
+  let html = `<div class="route-box">
+    <h2>🪐 Aaron Halo 小行星带导航指南</h2>
+    <p>Aaron Halo 是 Stanton 系最富矿的小行星带，位于 Crusader 和 ArcCorp 轨道之间。由 10 条密度不同的矿带组成，总厚度约 10,000 km。</p>
+
+    <h3>密度分布（距 Stanton 中心距离）</h3>
+    <table class="band-table">
+      <tr><th>矿带</th><th>距 Stanton 中心 (百万 km)</th><th>密度</th><th></th></tr>`;
+
+  for (const band of AARON_HALO_ROUTES.bands) {
+    const d = { 'very high': 100, 'high': 70, 'medium': 45, 'low': 25 };
+    const color = { 'very high': '#00d4ff', 'high': '#22d3ee', 'medium': '#67e8f9', 'low': '#a5f3fc' };
+    const label = { 'very high': '★★★', 'high': '★★', 'medium': '★', 'low': '○' };
+    const w = Math.max(10, d[band.density] / maxDensity * 120);
+    html += `<tr>
+      <td><b>Band ${band.band}</b></td>
+      <td>${(band.distance / 1000000).toFixed(1)}</td>
+      <td>${label[band.density]}</td>
+      <td><span class="density-bar" style="width:${w}px;background:linear-gradient(90deg,${color[band.density]}44,${color[band.density]})"></span></td>
+    </tr>`;
+  }
+  html += `</table>`;
+
+  html += `
+    <h3>🧭 导航方法：全系统路线规划（推荐）</h3>
+    <p>Aaron Halo 在 Stanton 中心周围 360° 均匀分布，只要你的量子航行路线穿过小行星带，就能用这个方法精确进入目标矿带。</p>
+    <ol>
+      <li>在密度表中选择你想要的矿带，记住距离（例如 Band 5 = 20.3 百万 km）</li>
+      <li>打开星图，选择一条<strong>穿过小行星带</strong>的量子航行路线，开始量子航行</li>
+      <li>打开 mobiGlas 星图，<strong>选中 Stanton 系中心标记</strong></li>
+      <li>盯着右上角<strong>到 Stanton 标记的距离</strong>，接近目标距离时关闭 mobiGlas</li>
+      <li><strong>按住 B 键</strong>退出量子航行 → 你就在目标矿带了！</li>
+    </ol>
+
+    <div class="tip">💡 提示：Band 5 密度最高，Band 2/4/8 也是好选择。低密度矿带 = 矿点少但竞争也少，矿石品质可能更高。</div>
+
+    <h3>🏭 从炼油站出发的路线</h3>
+    <p>或者用炼油站路线图：从炼油站量子航行到目标站，在指定距离退出。</p>
+    <table class="band-table">
+      <tr><th>炼油站</th><th>可到达的矿带路线</th></tr>`;
+  for (const ref of AARON_HALO_ROUTES.refineries) {
+    html += `<tr><td><b>${ref.name}</b></td><td>${ref.routes.join('、')}</td></tr>`;
+  }
+  html += `</table>`;
+
+  html += `
+    <div class="warning">⚠️ 跃迁门站（Jump Point Gateway）无法到达 Aaron Halo——它们偏离黄道面太远，路线不会穿过小行星带。</div>
+    <p style="margin-top:8px;font-size:0.78em;color:#4b5563;">
+      数据来源：<a class="link" href="https://cstone.space/resources/knowledge-base/36-refinery-to-aaron-halo-mining-routes" target="_blank">cstone.space - Aaron Halo Travel Routes</a> by CaptSheppard |
+      <a class="link" href="https://cstone.space/Media/373/AHMiningRoutes-3.16.1-LIVE/Aaron_Halo_Density_Chart3.png" target="_blank">密度分布原图</a>
+    </p>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+async function loadData() {
+  try {
+    const r = await fetch(DATA_URL);
+    miningData = await r.json();
+    initUI();
+  } catch (e) {
+    document.getElementById('results').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>加载失败: ${e.message}</div>`;
+  }
+}
+
+function getElementsByMethod(methodFilter, systemFilter, excludeBelt) {
+  const elements = new Map();
+  for (const [k, loc] of Object.entries(miningData.locations)) {
+    if (excludeBelt && (loc.locationType === 'belt' || loc.locationType === 'event' || loc.locationType === 'special')) continue;
+    if (systemFilter !== 'all' && loc.system !== systemFilter) continue;
+    for (const group of (loc.groups || [])) {
+      if (methodFilter !== 'all' && group.groupName !== methodFilter) continue;
+      if (!group.deposits) continue;
+      for (const dep of group.deposits) {
+        if (!dep.compositionGuid) continue;
+        const comp = miningData.compositions[dep.compositionGuid];
+        if (!comp) continue;
+        for (const part of comp.parts) {
+          if (!elements.has(part.elementName)) {
+            elements.set(part.elementName, part.elementName);
+          }
+        }
+      }
+    }
+  }
+  return [...elements.keys()].sort();
+}
+
+function initUI() {
+  populateElementSelect();
+  document.getElementById('elementSelect').addEventListener('change', update);
+  document.getElementById('methodFilter').addEventListener('change', () => { populateElementSelect(); update(); });
+  document.getElementById('systemFilter').addEventListener('change', () => { populateElementSelect(); update(); });
+  document.getElementById('excludeBelt').addEventListener('change', () => { populateElementSelect(); update(); });
+}
+
+function populateElementSelect() {
+  const methodFilter = document.getElementById('methodFilter').value;
+  const systemFilter = document.getElementById('systemFilter').value;
+  const excludeBelt = document.getElementById('excludeBelt').value === '1';
+  const prevValue = document.getElementById('elementSelect').value;
+  const sorted = getElementsByMethod(methodFilter, systemFilter, excludeBelt);
+  const sel = document.getElementById('elementSelect');
+  sel.innerHTML = '<option value="">-- 选择矿物 --</option>';
+  for (const name of sorted) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name.replace(/ \(Ore\)$/, '').replace(/ \(Raw\)$/, '');
+    sel.appendChild(opt);
+  }
+  // Restore previous selection if still available
+  if (prevValue && [...sel.options].some(o => o.value === prevValue)) {
+    sel.value = prevValue;
+  }
+}
+
+function update() {
+  if (!miningData) return;
+
+  const selected = document.getElementById('elementSelect').value;
+  const methodFilter = document.getElementById('methodFilter').value;
+  const systemFilter = document.getElementById('systemFilter').value;
+  const excludeBelt = document.getElementById('excludeBelt').value === '1';
+
+  if (!selected) {
+    document.getElementById('results').innerHTML = '<div class="empty-state"><div class="icon">⛏</div>选择一个矿物开始查询</div>';
+    document.getElementById('statsRow').innerHTML = '';
+    document.getElementById('routeInfo').innerHTML = '';
+    return;
+  }
+
+  const results = [];
+
+  for (const [k, loc] of Object.entries(miningData.locations)) {
+    if (excludeBelt && (loc.locationType === 'belt' || loc.locationType === 'event' || loc.locationType === 'special')) continue;
+    if (systemFilter !== 'all' && loc.system !== systemFilter) continue;
+
+    for (const group of (loc.groups || [])) {
+      if (methodFilter !== 'all' && group.groupName !== methodFilter) continue;
+      if (!group.deposits) continue;
+
+      // Normalize relProb within group
+      let totalProb = 0;
+      const relevantDeposits = group.deposits.filter(d => {
+        if (!d.compositionGuid) return false;
+        const comp = miningData.compositions[d.compositionGuid];
+        if (!comp) return false;
+        return comp.parts.some(p => p.elementName === selected);
+      });
+      for (const d of group.deposits) totalProb += (d.relativeProbability || 0);
+
+      // groupProbability is inconsistent: >1 means percentage (e.g. 25 = 25%), <=1 means fraction (e.g. 0.1 = 10%)
+      const groupProbPct = group.groupProbability > 1 ? group.groupProbability : (group.groupProbability * 100);
+
+      for (const dep of relevantDeposits) {
+        const comp = miningData.compositions[dep.compositionGuid];
+        const normalizedProb = totalProb > 0 ? (dep.relativeProbability / totalProb * 100) : 0;
+        const effectiveProb = normalizedProb * (groupProbPct / 100);
+        const isPrimary = comp.parts[0] && comp.parts[0].elementName === selected && comp.parts[0].qualityScale === 1;
+        const isSecondary = comp.parts.some(p => p.elementName === selected && p.qualityScale === 0.49);
+        const isByproduct = comp.parts.some(p => p.elementName === selected && p.qualityScale >= 0.78 && p.qualityScale < 1);
+
+        results.push({
+          locationName: loc.locationName,
+          system: loc.system,
+          locationType: loc.locationType,
+          groupName: group.groupName,
+          groupProb: groupProbPct,
+          normalizedProb,
+          effectiveProb,
+          compositionName: comp.name,
+          parts: comp.parts,
+          isPrimary,
+          isSecondary,
+          isByproduct
+        });
+      }
+    }
+  }
+
+  // Group by location first, then sort locations
+  // Key insight: for miners, what matters is "given I find a mining POI, what's the chance it has my ore?"
+  // That's the normalized weight. groupProbability affects POI density, not per-POI yield.
+  renderRouteInfo(results, excludeBelt);
+  renderResults(selected, results);
+}
+
+function renderResults(element, results) {
+  const container = document.getElementById('results');
+
+  if (results.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>没有找到该矿物的产地</div>';
+    document.getElementById('statsRow').innerHTML = '';
+    document.getElementById('routeInfo').innerHTML = '';
+    return;
+  }
+
+  // Group by location
+  const byLocation = new Map();
+  for (const r of results) {
+    if (!byLocation.has(r.locationName)) byLocation.set(r.locationName, []);
+    byLocation.get(r.locationName).push(r);
+  }
+
+  // Per-location scoring: 
+  // 1. Best normalized weight among primary deposits (chance the ore IS your target when you find it)
+  // 2. Number of mining methods available
+  // 3. Total effective probability as tiebreaker
+  const locScores = new Map();
+  for (const [locName, locResults] of byLocation) {
+    const primaryResults = locResults.filter(r => r.isPrimary);
+    const bestNorm = Math.max(...locResults.map(r => r.normalizedProb));
+    const bestPrimaryNorm = primaryResults.length > 0 ? Math.max(...primaryResults.map(r => r.normalizedProb)) : 0;
+    const methodCount = new Set(locResults.map(r => r.groupName)).size;
+    const totalEff = locResults.reduce((s, r) => s + r.effectiveProb, 0);
+    const hasPrimary = primaryResults.length > 0;
+    locScores.set(locName, { bestNorm, bestPrimaryNorm, methodCount, totalEff, hasPrimary });
+  }
+
+  // Sort locations: primary with highest normalized weight first, then by method count, then total eff
+  const sortedLocations = [...byLocation.entries()].sort((a, b) => {
+    const sa = locScores.get(a[0]), sb = locScores.get(b[0]);
+    // Primary locations first
+    if (sa.hasPrimary !== sb.hasPrimary) return sb.hasPrimary - sa.hasPrimary;
+    // Then by best primary normalized weight (the per-POI hit rate for your ore)
+    if (sa.bestPrimaryNorm !== sb.bestPrimaryNorm) return sb.bestPrimaryNorm - sa.bestPrimaryNorm;
+    // Then by method count (more ways to mine = better)
+    if (sa.methodCount !== sb.methodCount) return sb.methodCount - sa.methodCount;
+    // Then by total effective probability
+    return sb.totalEff - sa.totalEff;
+  });
+
+  // Stats
+  const bestLoc = sortedLocations[0];
+  const bestScore = locScores.get(bestLoc[0]);
+  const locationCount = sortedLocations.length;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${locationCount}</div>
+      <div class="stat-label">可产地点</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${bestScore.bestPrimaryNorm.toFixed(1)}%</div>
+      <div class="stat-label">最高权重 (${bestLoc[0]})</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${bestScore.methodCount}</div>
+      <div class="stat-label">采矿方式数</div>
+    </div>
+  `;
+
+  const maxNorm = Math.max(...results.filter(r => r.isPrimary).map(r => r.normalizedProb), 1);
+
+  let html = '';
+  for (let i = 0; i < sortedLocations.length; i++) {
+    const [locName, locResults] = sortedLocations[i];
+    const loc = locResults[0];
+    const score = locScores.get(locName);
+    const isBest = i === 0 && score.hasPrimary;
+
+    html += `<div class="location-card ${isBest ? 'best' : ''}">`;
+    html += `<div class="location-header">`;
+    html += `<div class="location-name">${locName}<span class="system-tag ${SYSTEM_CLASS[loc.system] || ''}">${loc.system}</span>`;
+    html += `<span class="type-badge">${TYPE_LABELS[loc.locationType] || loc.locationType}</span>`;
+    if (LAGRANGE_STATIONS[locName]) html += ` <span class="type-badge" style="background:rgba(0,212,255,0.1);color:#00d4ff">${LAGRANGE_STATIONS[locName]}</span>`;
+    if (isBest) html += ' ⭐ 推荐';
+    html += `</div>`;
+    html += `</div>`;
+
+    html += `<table class="deposit-table"><thead><tr>`;
+    html += `<th>采矿方式</th><th>矿石组合</th><th>权重</th><th>POI类型概率</th><th>备注</th>`;
+    html += `</tr></thead><tbody>`;
+
+    // Sort deposits within location: primary first, then by normalized prob
+    locResults.sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return b.isPrimary - a.isPrimary;
+      return b.normalizedProb - a.normalizedProb;
+    });
+
+    for (const r of locResults) {
+      const methodLabel = GROUP_LABELS[r.groupName] || r.groupName;
+      const barWidth = Math.max(2, r.normalizedProb / maxNorm * 80);
+      const note = r.isPrimary ? '🟢 主矿' : (r.isSecondary ? '🟡 次级' : '🔵 副产物');
+
+      html += `<tr>`;
+      html += `<td>${methodLabel}</td>`;
+      html += `<td>${r.compositionName}</td>`;
+      html += `<td class="highlight">${r.normalizedProb.toFixed(1)}%<span class="prob-bar" style="width:${barWidth}px"></span></td>`;
+      html += `<td>${r.groupProb.toFixed(1)}%</td>`;
+      html += `<td>${note}</td>`;
+      html += `</tr>`;
+
+      // Quality info for this composition
+      html += `<tr><td colspan="5"><div class="quality-info">`;
+      html += `<div class="qi-title">成分解析：</div>`;
+      for (const part of r.parts) {
+        const [cls, label] = qsLabel(part.qualityScale);
+        const tag = part.qualityScale === 1 ? 'primary' : (part.qualityScale === 0.49 ? 'secondary' : (part.qualityScale > 0.5 ? 'byproduct' : ''));
+        html += `<span class="quality-part"><span class="composition-tag ${tag}">${part.elementName}</span> <span class="${cls}">${label}</span> 占${part.minPercent}~${part.maxPercent}%</span>`;
+      }
+      html += `</div></td></tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+loadData();
+</script>
+</body>
+</html>
